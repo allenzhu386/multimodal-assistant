@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迪士尼奇妙助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        /* 乐园夜空背景 */
+        .park-bg {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg,
+                #0a0e2a 0%,
+                #1a1040 35%,
+                #2d1b69 55%,
+                #4a2c7a 75%,
+                #6b3fa0 100%);
+            z-index: 0;
+        }
+
+        /* 星星 */
+        .stars {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle var(--dur, 3s) ease-in-out infinite;
+            animation-delay: var(--delay, 0s);
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        /* 烟花 */
+        .fireworks {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: burst 4s ease-out infinite;
+        }
+
+        .firework::before,
+        .firework::after {
+            content: "";
+            position: absolute;
+            inset: -20px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            animation: ring 4s ease-out infinite;
+        }
+
+        .firework::after {
+            animation-delay: 0.15s;
+        }
+
+        @keyframes burst {
+            0% { opacity: 0; transform: scale(0); }
+            10% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0); }
+        }
+
+        @keyframes ring {
+            0% { opacity: 0; transform: scale(0.2); border-color: var(--color); }
+            30% { opacity: 0.8; }
+            100% { opacity: 0; transform: scale(3); border-color: transparent; }
+        }
+
+        /* 城堡剪影 */
+        .castle {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(900px, 95vw);
+            z-index: 2;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+
+        .castle svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* 地面光晕 */
+        .ground-glow {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: radial-gradient(ellipse at center bottom,
+                rgba(255, 200, 100, 0.15) 0%,
+                transparent 70%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* 主布局 */
+        .app {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* 顶部标题栏 */
+        .header {
+            text-align: center;
+            padding: 12px 0 16px;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffd700, #ffb347, #ff6b9d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.65);
+            margin-top: 4px;
+        }
+
+        /* 聊天区域 */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 2px;
+        }
+
+        /* 欢迎消息 */
+        .welcome {
+            text-align: center;
+            padding: 24px 16px;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .welcome-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .welcome h2 {
+            font-size: 1.1rem;
+            color: #ffd700;
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            font-size: 0.88rem;
+            line-height: 1.6;
+        }
+
+        /* 快捷提问 */
+        .quick-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        .prompt-chip {
+            padding: 8px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.35);
+            background: rgba(255, 215, 0, 0.08);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .prompt-chip:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            transform: translateY(-1px);
+        }
+
+        /* 消息气泡 */
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 88%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .message.user .avatar {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #1a1040;
+        }
+
+        .message.assistant .avatar {
+            background: linear-gradient(135deg, #6b3fa0, #9b59b6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.65;
+            font-size: 0.92rem;
+            word-break: break-word;
+        }
+
+        .message.user .bubble {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 140, 0, 0.2));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .bubble {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-bottom-left-radius: 4px;
+        }
+
+        /* 媒体展示 */
+        .media-card {
+            margin-top: 10px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 215, 0, 0.25);
+        }
+
+        .media-card img {
+            width: 100%;
+            max-height: 260px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .media-card video {
+            width: 100%;
+            max-height: 260px;
+            display: block;
+            background: #000;
+        }
+
+        .media-label {
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            color: rgba(255, 215, 0, 0.8);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* 来源引用 */
+        .sources {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sources-title {
+            font-size: 0.75rem;
+            color: rgba(255, 215, 0, 0.7);
+            margin-bottom: 6px;
+        }
+
+        .source-item {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 3px;
+        }
+
+        /* 加载动画 */
+        .typing {
+            display: flex;
+            gap: 5px;
+            padding: 4px 0;
+        }
+
+        .typing span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 215, 0, 0.7);
+            animation: bounce 1.2s ease-in-out infinite;
+        }
+
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 18px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            font-size: 0.92rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-area input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .input-area input:focus {
+            border-color: rgba(255, 215, 0, 0.5);
+        }
+
+        .send-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #1a1040;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 错误提示 */
+        .error-text {
+            color: #ff6b6b;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 乐园背景层 -->
+    <div class="park-bg"></div>
+    <div class="stars" id="stars"></div>
+    <div class="fireworks" id="fireworks"></div>
+    <div class="ground-glow"></div>
+
+    <!-- 城堡剪影 -->
+    <div class="castle">
+        <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#1a0a3e" d="M0,200 L0,160 L40,160 L40,120 L60,120 L60,80 L80,80 L80,120 L100,120 L100,60 L120,60 L120,20 L140,60 L140,100 L160,100 L160,40 L180,40 L180,100 L200,100 L200,70 L220,70 L220,100 L240,100 L240,50 L260,50 L260,100 L280,100 L280,30 L300,30 L300,100 L320,100 L320,60 L340,60 L340,100 L360,100 L360,80 L380,80 L380,100 L400,100 L400,10 L420,10 L420,100 L440,100 L440,60 L460,60 L460,100 L480,100 L480,50 L500,50 L500,100 L520,100 L520,70 L540,70 L540,100 L560,100 L560,40 L580,40 L580,100 L600,100 L600,60 L620,60 L620,100 L640,100 L640,20 L660,60 L660,100 L680,100 L680,80 L700,80 L700,120 L720,120 L720,160 L760,160 L760,200 Z"/>
+        </svg>
+    </div>
+
+    <div class="app">
+        <header class="header">
+            <h1>迪士尼奇妙助手</h1>
+            <p>多模态智能客服 · 文本 · 图片 · 视频</p>
+        </header>
+
+        <div class="chat-panel">
+            <div class="messages" id="messages">
+                <div class="welcome" id="welcome">
+                    <span class="welcome-icon">&#9733;</span>
+                    <h2>欢迎来到奇妙世界</h2>
+                    <p>我是您的迪士尼智能助手，可以回答门票、攻略、会员等问题，<br>也支持查看活动海报和相关视频。</p>
+                    <div class="quick-prompts">
+                        <button class="prompt-chip" data-query="我想了解一下迪士尼门票的退款流程">门票退款流程</button>
+                        <button class="prompt-chip" data-query="最近万圣节的活动海报是什么">万圣节海报</button>
+                        <button class="prompt-chip" data-query="聚在一起说奇妙的海报">活动海报</button>
+                        <button class="prompt-chip" data-query="我的汽车被剐蹭了，你能看到视频么？">查看相关视频</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="queryInput" placeholder="输入您的问题，例如：老人票怎么买？" autocomplete="off">
+                <button class="send-btn" id="sendBtn" title="发送">&#10148;</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesEl = document.getElementById("messages");
+        const welcomeEl = document.getElementById("welcome");
+        const queryInput = document.getElementById("queryInput");
+        const sendBtn = document.getElementById("sendBtn");
+
+        let isLoading = false;
+
+        // 生成星星
+        (function createStars() {
+            const container = document.getElementById("stars");
+            for (let i = 0; i < 80; i++) {
+                const star = document.createElement("div");
+                star.className = "star";
+                star.style.left = Math.random() * 100 + "%";
+                star.style.top = Math.random() * 60 + "%";
+                star.style.setProperty("--dur", (2 + Math.random() * 3) + "s");
+                star.style.setProperty("--delay", Math.random() * 3 + "s");
+                container.appendChild(star);
+            }
+        })();
+
+        // 生成烟花
+        (function createFireworks() {
+            const container = document.getElementById("fireworks");
+            const colors = ["#ffd700", "#ff6b9d", "#87ceeb", "#ff8c00", "#da70d6"];
+            for (let i = 0; i < 5; i++) {
+                const fw = document.createElement("div");
+                fw.className = "firework";
+                fw.style.left = (15 + Math.random() * 70) + "%";
+                fw.style.top = (10 + Math.random() * 40) + "%";
+                fw.style.setProperty("--color", colors[i % colors.length]);
+                fw.style.animationDelay = (i * 1.8) + "s";
+                container.appendChild(fw);
+            }
+        })();
+
+        function hideWelcome() {
+            if (welcomeEl) welcomeEl.remove();
+        }
+
+        function scrollToBottom() {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function createMessage(role, content) {
+            hideWelcome();
+            const msg = document.createElement("div");
+            msg.className = "message " + role;
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.textContent = role === "user" ? "我" : "助";
+
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            if (typeof content === "string") {
+                bubble.textContent = content;
+            } else {
+                bubble.appendChild(content);
+            }
+
+            msg.appendChild(avatar);
+            msg.appendChild(bubble);
+            messagesEl.appendChild(msg);
+            scrollToBottom();
+            return bubble;
+        }
+
+        function showLoading() {
+            hideWelcome();
+            const msg = document.createElement("div");
+            msg.className = "message assistant";
+            msg.id = "loadingMsg";
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.textContent = "助";
+
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            const typing = document.createElement("div");
+            typing.className = "typing";
+            typing.innerHTML = "<span></span><span></span><span></span>";
+            bubble.appendChild(typing);
+
+            msg.appendChild(avatar);
+            msg.appendChild(bubble);
+            messagesEl.appendChild(msg);
+            scrollToBottom();
+        }
+
+        function removeLoading() {
+            const el = document.getElementById("loadingMsg");
+            if (el) el.remove();
+        }
+
+        function buildAssistantContent(data) {
+            const wrapper = document.createDocumentFragment();
+
+            const text = document.createElement("div");
+            text.textContent = data.answer;
+            wrapper.appendChild(text);
+
+            if (data.image && data.image.path) {
+                const filename = data.image.path.split("/").pop();
+                const card = document.createElement("div");
+                card.className = "media-card";
+                const img = document.createElement("img");
+                img.src = "/media/images/" + encodeURIComponent(filename);
+                img.alt = "相关图片";
+                const label = document.createElement("div");
+                label.className = "media-label";
+                label.textContent = "相关图片 · 相似度 " + (data.image.similarity * 100).toFixed(1) + "%";
+                card.appendChild(img);
+                card.appendChild(label);
+                wrapper.appendChild(card);
+            }
+
+            if (data.video && data.video.url) {
+                const card = document.createElement("div");
+                card.className = "media-card";
+                const video = document.createElement("video");
+                video.src = data.video.url;
+                video.controls = true;
+                video.preload = "metadata";
+                const label = document.createElement("div");
+                label.className = "media-label";
+                const desc = data.video.description || "相关视频";
+                label.textContent = desc + " · 相似度 " + (data.video.similarity * 100).toFixed(1) + "%";
+                card.appendChild(video);
+                card.appendChild(label);
+                wrapper.appendChild(card);
+            }
+
+            if (data.sources && data.sources.length > 0) {
+                const sources = document.createElement("div");
+                sources.className = "sources";
+                const title = document.createElement("div");
+                title.className = "sources-title";
+                title.textContent = "参考来源";
+                sources.appendChild(title);
+                data.sources.forEach(function(s) {
+                    const item = document.createElement("div");
+                    item.className = "source-item";
+                    item.textContent = s.source + " (" + (s.similarity * 100).toFixed(1) + "%)";
+                    sources.appendChild(item);
+                });
+                wrapper.appendChild(sources);
+            }
+
+            return wrapper;
+        }
+
+        async function sendQuery(query) {
+            query = query.trim();
+            if (!query || isLoading) return;
+
+            isLoading = true;
+            sendBtn.disabled = true;
+            createMessage("user", query);
+            queryInput.value = "";
+            showLoading();
+
+            try {
+                const resp = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: query })
+                });
+
+                removeLoading();
+
+                if (!resp.ok) {
+                    const err = await resp.json().catch(function() { return {}; });
+                    createMessage("assistant", err.error || "请求失败，请稍后重试");
+                    return;
+                }
+
+                const data = await resp.json();
+                createMessage("assistant", buildAssistantContent(data));
+            } catch (e) {
+                removeLoading();
+                const errDiv = document.createElement("div");
+                errDiv.className = "error-text";
+                errDiv.textContent = "网络错误，请确认后端服务已启动 (python3 6-disney_api.py)";
+                createMessage("assistant", errDiv);
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                queryInput.focus();
+            }
+        }
+
+        sendBtn.addEventListener("click", function() {
+            sendQuery(queryInput.value);
+        });
+
+        queryInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") sendQuery(queryInput.value);
+        });
+
+        document.querySelectorAll(".prompt-chip").forEach(function(chip) {
+            chip.addEventListener("click", function() {
+                sendQuery(chip.dataset.query);
+            });
+        });
+
+        queryInput.focus();
+    </script>
+</body>
+</html>

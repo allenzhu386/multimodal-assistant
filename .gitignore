@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+venv/
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# IDE / 工具
+.wucai/
+.cursorindexingignore
+
+# 日志
+debug-paste.log
+*.log
+
+# 密钥（切勿提交）
+*.pem
+secrets.json
+credentials.json

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迪士尼RAG助手 - 项目架构图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            border-bottom: 2px solid #ff6b6b;
+            padding-bottom: 10px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .key-points {
+            background-color: #e8f4fd;
+            border-left: 4px solid #007bff;
+            padding: 12px 16px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .key-points ul {
+            margin: 8px 0 0;
+            padding-left: 20px;
+        }
+        .png-link {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #666;
+        }
+        .png-link a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .png-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>迪士尼RAG助手 - 项目架构图</h1>
+        <p class="subtitle">多模态 RAG 系统 · 索引构建 + 查询推理 · 关键技术节点</p>
+
+        <div class="key-points">
+            <strong>核心技术栈：</strong>
+            <ul>
+                <li>多模态向量化：tongyi-embedding-vision-plus（文本 / 图片 / 视频统一向量空间）</li>
+                <li>向量检索：FAISS IndexFlatL2（L2 距离）</li>
+                <li>大模型生成：qwen-flash（DashScope OpenAI 兼容接口）</li>
+                <li>知识库：DOCX 文档 + 本地图片 + 远程视频 URL</li>
+            </ul>
+        </div>
+
+        <div class="mermaid">
+flowchart TB
+    subgraph 数据源层["数据源层 (disney_knowledge_base/)"]
+        DOCX["Word 文档 (.docx)<br/>门票规则 / 攻略 / 老人票 / 酒店会员"]
+        IMG["本地图片 (.jpg/.jpeg)<br/>万圣节海报 / 活动海报"]
+        VIDEO["远程视频 URL<br/>腾讯云 COS mp4"]
+    end
+
+    subgraph 索引构建["索引构建阶段 (4-disney_build_index.py)"]
+        PARSE["DOCX 解析<br/>python-docx"]
+        CHUNK["文本切分<br/>chunk=500, overlap=50"]
+        EMB_BUILD["多模态向量化<br/>tongyi-embedding-vision-plus"]
+        FAISS_BUILD["FAISS 向量索引<br/>IndexFlatL2 (L2距离)"]
+        META["元数据存储<br/>disney_metadata.json"]
+        INDEX["向量索引文件<br/>disney_index.faiss"]
+    end
+
+    subgraph 查询推理["查询推理阶段 (5-disney_query.py)"]
+        QUERY["用户 Query"]
+        EMB_QUERY["Query 向量化<br/>tongyi-embedding-vision-plus"]
+        SEARCH["FAISS 全量检索<br/>L2距离 → 相似度"]
+        INTENT["意图检测<br/>图片/视频关键词"]
+        TOPK["Top-K 文本召回<br/>构建 RAG Context"]
+        MEDIA["媒体匹配<br/>距离阈值 < 3.0"]
+        LLM["大模型生成<br/>qwen-flash"]
+        ANSWER["最终答案<br/>文本 + 图片路径/视频URL"]
+    end
+
+    subgraph 外部服务["阿里云 DashScope API"]
+        API_EMB["MultiModalEmbedding API<br/>文本 / 图片 / 视频 统一向量空间"]
+        API_LLM["OpenAI 兼容接口<br/>Chat Completions"]
+    end
+
+    subgraph 技术验证["技术验证脚本 (独立 Demo)"]
+        DEMO1["1-文本embedding.py"]
+        DEMO2["2-图片embedding.py"]
+        DEMO3["3-视频embedding.py"]
+    end
+
+    DOCX --> PARSE --> CHUNK --> EMB_BUILD
+    IMG --> EMB_BUILD
+    VIDEO --> EMB_BUILD
+    EMB_BUILD --> API_EMB
+    EMB_BUILD --> FAISS_BUILD
+    EMB_BUILD --> META
+    FAISS_BUILD --> INDEX
+
+    QUERY --> EMB_QUERY --> API_EMB
+    INDEX --> SEARCH
+    META --> SEARCH
+    EMB_QUERY --> SEARCH
+    SEARCH --> INTENT
+    SEARCH --> TOPK
+    SEARCH --> MEDIA
+    TOPK --> LLM
+    LLM --> API_LLM
+    LLM --> ANSWER
+    MEDIA --> ANSWER
+
+    DEMO1 --> API_EMB
+    DEMO2 --> API_EMB
+    DEMO3 --> API_EMB
+        </div>
+
+        <p class="png-link">静态图片版本：<a href="disney_architecture.png" target="_blank">disney_architecture.png</a></p>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>
